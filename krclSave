@@ -1,0 +1,112 @@
+#!/bin/bash
+
+set -o errexit
+
+KRCL_DEBUG="True";
+KRCL_STREAM_CAPTURE_SECS="30";
+KRCL_STREAM_URL="http://stream.xmission.com/krcl-high";
+KRCL_PLAYLIST_URL="https://krcl.org/playlist/"
+DATEFMT=$(date "+%Y%m%d%H%M%S");
+LOGFILE="${HOME}/krcl/data/${DATEFMT}-full.pls"
+TAGFILE="${HOME}/krcl/data/${DATEFMT}-song.pls"
+MP3SAMPLE="${HOME}/krcl/data/${DATEFMT}.mp3"
+
+debug() {
+	if [[ "${KRCL_DEBUG}" == "True" ]]; then
+		echo "$*"
+	fi
+}
+
+filename_safe() {
+#	_ret=$(echo "$*" | sed -E 's/[^[:alnum:][:space:]\.\-]+/_/g');
+	_ret=$(echo "$*" | sed -E 's/[^[:alnum:]\.\-]+/_/g');
+	echo ${_ret}
+}
+
+
+source "${HOME}/bin/termux-wrappers.sh"
+msg_toast "Capturing ${KRCL_STREAM_CAPTURE_SECS}s audio sample to ${DATEFMT}.mp3. Gathering meta data..."
+
+msg_notify "${DATEFMT}" "KRCL Save: ${DATEFMT}" "Capturing audio sample and fetching metadata."
+
+#curl --silent --max-time ${KRCL_STREAM_CAPTURE_SECS} "${KRCL_STERAM_URL}" > "${MP3SAMPLE}" &
+curl --silent --max-time "${KRCL_STREAM_CAPTURE_SECS}" "${KRCL_STREAM_URL}" --output "${MP3SAMPLE}"  &
+CURL_PID=$!;
+
+
+debug "CURL_PID: ${CURL_PID}"
+
+
+# Now scrape the krcl playlist page
+
+echo "[" > "${LOGFILE}"
+
+
+wget --quiet -O - "${KRCL_PLAYLIST_URL}" | 
+	tr -d "\r\n\t"  | 
+	sed -E -e 's/(<div class="playlist-item (odd|even|none)">)/\
+\0 /g' -e 's/<ul class="pagination">/\
+/g' | 
+	grep '<div class="playlist-item' | 
+	egrep -o '<h3>.*</h3>' | 
+	sed -E 's/[[:space:]][[:space:]]+/ /g' | 
+	sed -E 's/<h3><b>([^<]*)<\/b> \| ([^<]*)<\/h3> <h3>([^<]*)<\/h3>.*<h3> ([A-Za-z]{3} [0-9][0-9]?)[^>]*>([0-9\:]* [A-Z]{2}).*/{"artist":"\1","track":"\2","album":"\3","date":"\4","time":"\5"}/g'  |
+	paste -sd, - >> "${LOGFILE}"
+echo "]" >> "${LOGFILE}"
+
+
+# Now save the first item in teh new playlist to krcl_songs.json for later processing
+SONG=$(cat "${LOGFILE}" | jq -c -r '.[0]');
+ARTIST=$(echo "${SONG}" | jq -c -r .artist);
+TRACK=$(echo "${SONG}" | jq -c -r .track);
+LINE="{\"date\":\"${DATEFMT}\", \"song\":${SONG}}"
+echo "${LINE}" >> "${TAGFILE}"
+
+
+ARTIST_SAFE=$(filename_safe "${ARTIST}");
+TRACK_SAFE=$(filename_safe "${TRACK}");
+
+
+debug "SONG:${SONG}"
+debug "ARTIST:${ARTIST} TRACK:${TRACK}"
+
+msg_notify "${DATEFMT}" "KRCL Save: ${ARTIST} - ${TRACK}" "Waiting for audio sample capture..."
+
+MAX_WAIT=$(( $KRCL_STREAM_CAPTURE_SECS + 5 ));
+COUNT=0; 
+
+while [ -d "/proc/${CURL_PID}" ]; do
+	COUNT=$(( $COUNT + 1 ))
+	debug "Waiting for CURL to exit. Count: ${COUNT} / ${MAX_WAIT}"
+
+#	if [[ "${COUNT}" > "${MAX_WAIT}" ]]; then
+#		msg_toast "Hmm..audio sample has exceeded time limit. (odd...). Forcing stop.."
+#		kill -9 "${CURL_PID}"
+#		break
+#	fi 
+	sleep 1
+done
+
+if [ -e "${MP3SAMPLE}" ]; then
+	# Rename the mp3 sample to include the artist / track...
+	MP3RENAME="${HOME}/krcl/data/${DATEFMT}-${ARTIST_SAFE}-${TRACK_SAFE}.mp3";
+	debug "Moving  ${MP3SAMPLE} to ${MP3RENAME}"
+	mv "${MP3SAMPLE}" "${MP3RENAME}"
+else
+	echo "ERROR: ${MP3SAMPLE} DOES NOT EXIST"
+	msg_toast "ERROR: Failed to save capture...";
+	exit 1
+fi
+
+#msg_notify "${DATEFMT}" "KRCL Save: ${ARTIST} - ${TRACK}" "Waiting for audio sample capture..."
+
+termux-notification --id "${DATEFMT}" \
+	--title "KRCL Save: ${ARTIST} - ${TRACK}" \
+	--content "Done. Tap to play sample." \
+	--button1 "Play Sample" \
+	--button1-action "${HOME}/usr/bin/termux-media-player play ${MP3RENAME}" \
+	--action "${HOME}/usr/bin/termux-media-player play ${MP3RENAME}"
+
+
+
+
