@@ -10,6 +10,8 @@ DATEFMT=$(date "+%Y%m%d%H%M%S");
 LOGFILE="${HOME}/krcl/data/${DATEFMT}-full.pls"
 TAGFILE="${HOME}/krcl/data/${DATEFMT}-song.pls"
 MP3SAMPLE="${HOME}/krcl/data/${DATEFMT}.mp3"
+KRCL_SONG_LIST="${HOME}/krcl/saved-songs.txt"
+
 
 debug() {
 	if [[ "${KRCL_DEBUG}" == "True" ]]; then
@@ -61,6 +63,8 @@ ARTIST=$(echo "${SONG}" | jq -c -r .artist);
 TRACK=$(echo "${SONG}" | jq -c -r .track);
 LINE="{\"date\":\"${DATEFMT}\", \"song\":${SONG}}"
 echo "${LINE}" >> "${TAGFILE}"
+echo "${LINE}" >> "${KRCL_SONG_LIST}"
+
 
 
 ARTIST_SAFE=$(filename_safe "${ARTIST}");
