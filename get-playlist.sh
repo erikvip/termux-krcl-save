@@ -38,7 +38,7 @@ END_TIME=$(date --date="@${s_END_TIME}");
 # Year is ommitted in feed, so parse from command line arguments for later
 YEAR=$(date --date="@${s_START_TIME}" "+%Y"); 
 
-PL_TMP=$(tempfile); 
+PL_TMP=$(mktemp); 
 #PL_TMP='/tmp/fileuKSQwa';
 
 
@@ -48,7 +48,7 @@ PL_TMP=$(tempfile);
 
 _krcl_playlist_html_to_json() {
 
-	local JQ_TMP=$(tempfile);
+	local JQ_TMP=$(mktemp);
 	local _html_data_file=$1; 
 	echo "[" > $JQ_TMP
 	cat $_html_data_file |  
