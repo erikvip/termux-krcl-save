@@ -2,6 +2,8 @@
 
 #eyeD3 --artist "KRCL-Afternoon Delight" --album "2019-11-23" --title "13:00 1:03 PM ::  Adrian Younge | 1:05 PM :: Charles Bradley | 1:10 PM :: The Pretty Things | 1:14 PM :: The Animals" --comment "1:03 PM :: Adrian Younge    Sittin&#39; by the Radio${NL}1:05 PM :: Charles Bradley   Ain&#39;t Gonna Give It Up ${NL}1:14 PM :: The Animals       All Night Long${NL}1:10 PM :: The Pretty Things Baron Saturday " out2.mp3
 
+
+#python2 -c "import HTMLParser, sys; p=HTMLParser.HTMLParser();sys.stdout.write(p.unescape(sys.stdin.read()));"
 #echo "What&#39;s a Girl to Do?" | python3 -c 'import html, sys; sys.stdout.write(html.unescape(sys.stdin.read()))
 
 set -o nounset  # Fail when access undefined variable
