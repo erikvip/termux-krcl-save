@@ -1,0 +1,8 @@
+# Add 1 day as it's in GMT.
+
+# Summertime:
+# wget https://rfa-rackspace-archive-prod.s3.amazonaws.com/krcl_20190618-0{2..4}{00,15,30,45,00}00.mp3
+
+# Daylight saving time: 
+# wget https://rfa-rackspace-archive-prod.s3.amazonaws.com/krcl_20191113-0{3..5}{00,15,30,45,00}00.mp3
+
